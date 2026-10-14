@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jcgtanaka/crisispaths/schema/summary.schema.json",
+  "title": "crisispaths summary.json",
+  "description": "Per-scenario results of a crisispaths run. Scenarios are conditional what-ifs; the document never contains a figure aggregated across scenarios.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "package_version", "banner", "source_directory", "caveats", "scenarios", "variants"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "package_version": {"type": "string"},
+    "banner": {"type": "string", "minLength": 1},
+    "source_directory": {"type": "string"},
+    "caveats": {"type": "array", "items": {"type": "string"}},
+    "scenarios": {"type": "array", "items": {"$ref": "#/$defs/scenario"}},
+    "variants": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["scenarios", "axis_ranges"],
+          "properties": {
+            "scenarios": {"type": "array", "items": {"$ref": "#/$defs/variantRow"}},
+            "axis_ranges": {"type": "array", "items": {"$ref": "#/$defs/axisRange"}}
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "number": {"type": ["number", "null"]},
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "family", "axis_choices", "overrides", "merged_choices", "skipped_options",
+                   "content_hash", "calibration_hash", "seed", "package_version", "calm_drift", "label",
+                   "frequency", "profile_source", "n_paths_requested", "n_paths", "costs_bps",
+                   "cost_multiplier", "benchmark", "judgment_parameters", "loadings", "path_sanity",
+                   "metrics"],
+      "properties": {
+        "key": {"type": "string"},
+        "family": {"type": "string"},
+        "axis_choices": {"type": "object"},
+        "overrides": {"type": "object"},
+        "merged_choices": {"type": "array"},
+        "skipped_options": {"type": "array", "items": {"type": "string"}},
+        "content_hash": {"type": "string"},
+        "calibration_hash": {"type": "string"},
+        "seed": {"type": "integer"},
+        "package_version": {"type": "string"},
+        "calm_drift": {"type": "string"},
+        "label": {"type": "string"},
+        "frequency": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["bars_per_year", "bars_per_day", "kind"],
+          "properties": {
+            "bars_per_year": {"type": "number"},
+            "bars_per_day": {"type": "number"},
+            "kind": {"enum": ["daily_or_coarser", "intraday"]}
+          }
+        },
+        "profile_source": {"type": ["string", "null"]},
+        "n_paths_requested": {"type": "integer"},
+        "n_paths": {"type": "integer"},
+        "costs_bps": {"type": "number"},
+        "cost_multiplier": {"type": "number"},
+        "benchmark": {"type": ["string", "null"]},
+        "judgment_parameters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "cum_dist", "params", "rationale"],
+            "properties": {
+              "path": {"type": "string"},
+              "cum_dist": {"type": ["string", "null"]},
+              "params": {"type": "object"},
+              "rationale": {"type": "string"}
+            }
+          }
+        },
+        "loadings": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "required": ["regimes", "factors", "assets", "warnings"],
+              "properties": {
+                "regimes": {"type": "array", "items": {"type": "string"}},
+                "factors": {"type": "array", "items": {"type": "string"}},
+                "warnings": {"type": "array", "items": {"type": "string"}},
+                "assets": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["asset", "n_obs", "shrinkage", "betas", "std_errors", "unaffected",
+                                 "imputed", "amplification"],
+                    "properties": {
+                      "asset": {"type": "string"},
+                      "n_obs": {"type": "object"},
+                      "shrinkage": {"type": "object"},
+                      "betas": {"type": "object"},
+                      "std_errors": {"type": "object"},
+                      "unaffected": {"type": "boolean"},
+                      "imputed": {"type": "boolean"},
+                      "amplification": {"$ref": "#/$defs/number"}
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "path_sanity": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["asset", "crash_leg_median", "horizon_median", "implied_by_stress_loadings",
+                         "imputed", "amplification", "warning"],
+            "properties": {
+              "asset": {"type": "string"},
+              "crash_leg_median": {"$ref": "#/$defs/number"},
+              "horizon_median": {"$ref": "#/$defs/number"},
+              "implied_by_stress_loadings": {"$ref": "#/$defs/number"},
+              "imputed": {"type": "boolean"},
+              "amplification": {"$ref": "#/$defs/number"},
+              "warning": {"type": ["string", "null"]}
+            }
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "required": ["median_terminal_wealth", "quantiles", "cvar", "ruin", "recovery", "censoring",
+                       "benchmark_comparison", "ci_level"],
+          "properties": {
+            "median_terminal_wealth": {"$ref": "#/$defs/number"},
+            "quantiles": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["metric", "quantile", "value", "ci_low", "ci_high"],
+                "properties": {
+                  "metric": {"type": "string"},
+                  "quantile": {"type": "number"},
+                  "value": {"$ref": "#/$defs/number"},
+                  "ci_low": {"$ref": "#/$defs/number"},
+                  "ci_high": {"$ref": "#/$defs/number"}
+                }
+              }
+            },
+            "cvar": {"type": "object"},
+            "ruin": {
+              "type": "object",
+              "required": ["p", "n_ruined", "n", "ci_low", "ci_high"],
+              "properties": {
+                "p": {"$ref": "#/$defs/number"},
+                "n_ruined": {"type": "integer"},
+                "n": {"type": "integer"},
+                "ci_low": {"$ref": "#/$defs/number"},
+                "ci_high": {"$ref": "#/$defs/number"}
+              }
+            },
+            "recovery": {"type": "object"},
+            "censoring": {
+              "type": "object",
+              "required": ["n_censored", "n"],
+              "properties": {"n_censored": {"type": "integer"}, "n": {"type": "integer"}}
+            },
+            "benchmark_comparison": {
+              "oneOf": [
+                {"type": "null"},
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["statistic", "strategy", "benchmark", "difference", "ci_low", "ci_high"]
+                  }
+                }
+              ]
+            },
+            "ci_level": {"type": "number"}
+          }
+        }
+      }
+    },
+    "variantRow": {
+      "type": "object",
+      "required": ["key", "axis_choices", "median_terminal_wealth", "p_ruin", "median_max_drawdown",
+                   "median_excess_wealth"],
+      "properties": {
+        "key": {"type": "string"},
+        "axis_choices": {"type": "object"},
+        "median_terminal_wealth": {"$ref": "#/$defs/number"},
+        "p_ruin": {"$ref": "#/$defs/number"},
+        "median_max_drawdown": {"$ref": "#/$defs/number"},
+        "median_excess_wealth": {"$ref": "#/$defs/number"}
+      }
+    },
+    "axisRange": {
+      "type": "object",
+      "required": ["axis", "option", "n_scenarios", "median_terminal_wealth_min",
+                   "median_terminal_wealth_max", "median_max_drawdown_min", "median_max_drawdown_max"],
+      "properties": {
+        "axis": {"type": "string"},
+        "option": {"type": "string"},
+        "n_scenarios": {"type": "integer"}
+      }
+    }
+  }
+}
