@@ -51,6 +51,15 @@ This is research software, not financial advice.
 
 - Linux is supported. Windows and macOS are experimental: untested by the author
   and dependent on the `spawn` start method; please report issues.
+- Continuous integration runs the full suite on Linux (Python 3.12 and 3.13) and on
+  Windows, where it passes. On macOS the suite passes except for tests that compare
+  exact random realisations (skipped there).
+- Reproducibility: the same seed gives the same paths on one platform and library
+  stack. The calibration is cross-platform stable, but the random draws are not
+  guaranteed to be identical across operating systems, BLAS builds or numpy
+  versions (matrix square roots depend on LAPACK). Realisations then differ while
+  the distribution is the same, so summary statistics agree within sampling
+  error. Pin your environment when you need exact reruns.
 - Python 3.12 or newer only.
 
 ## Commentary verification limits
