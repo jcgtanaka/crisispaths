@@ -1,0 +1,28 @@
+# environments
+.venv/
+venv/
+env/
+.env
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.mypy_cache/
+.ipynb_checkpoints/
+# build artefacts
+build/
+dist/
+*.whl
+# run outputs
+demo_out/
+out/
+out_*/
+*_out/
+REPORT.pdf
+# editor and OS
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "crisispaths"
+version = "0.1.0"
+description = "Backtest any strategy under simulated crisis scenarios: composable, reproducible, resumable what-ifs, not forecasts."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "crisispaths contributors" }]
+keywords = ["backtesting", "stress-testing", "scenario-analysis", "monte-carlo", "crisis",
+            "risk", "quantitative-finance"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Financial and Insurance Industry",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Office/Business :: Financial :: Investment",
+  "Typing :: Typed",
+]
+dependencies = [
+  "numpy",
+  "pandas",
+  "scipy",
+  "pyyaml",
+  "platformdirs",
+]
+
+[project.urls]
+Homepage = "https://github.com/jcgtanaka/crisispaths"
+Repository = "https://github.com/jcgtanaka/crisispaths"
+Issues = "https://github.com/jcgtanaka/crisispaths/issues"
+Changelog = "https://github.com/jcgtanaka/crisispaths/blob/main/CHANGELOG.md"
+
+[project.scripts]
+crisispaths = "crisispaths.cli:main"
+
+[project.optional-dependencies]
+data = ["yfinance", "pandas-datareader", "pyarrow"]
+report = ["matplotlib"]
+pdf = ["reportlab", "matplotlib"]
+dev = ["pytest", "hypothesis", "ruff", "pyarrow", "matplotlib", "nbformat", "build", "twine", "jsonschema", "reportlab", "pypdf"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/crisispaths"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not network'"
+markers = ["network: tests that need internet access (skipped by default)"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
