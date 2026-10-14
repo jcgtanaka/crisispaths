@@ -170,15 +170,27 @@ def test_analog_exact_replay(cal_ai, spec_ai, clock, market):
 
 
 def test_analog_keeps_realised_beta(cal_ai, spec_ai, clock):
+    """Realised crash-leg loadings match the calibrated stress loadings, within sampling error.
+
+    The asset is regressed on BOTH anchored factors: over the short crash leg EQ and TECH are
+    not orthogonal (they only are over the whole analog window), so a one-factor regression
+    is biased by the omitted factor. The tolerance is 4 standard errors, so it does not depend
+    on the platform's BLAS or on one lucky realisation.
+    """
+    names = ["EQ", "TECH"]
     xs, ys = [], []
     for i in range(20):
         p = gen(cal_ai, spec_ai, clock, i)
         L = p.meta["crash_bars"]
-        xs.append(p.factors["EQ"].iloc[:L].to_numpy())
+        xs.append(p.factors[names].iloc[:L].to_numpy())
         ys.append(p.returns["A045"].iloc[:L].to_numpy())
-    x, y = np.concatenate(xs), np.concatenate(ys)
-    beta = np.cov(x, y)[0, 1] / x.var(ddof=1)
-    assert beta == pytest.approx(0.45, abs=0.07)
+    X, y = np.concatenate(xs), np.concatenate(ys)
+    beta, *_ = np.linalg.lstsq(X, y, rcond=None)
+    resid = y - X @ beta
+    se = np.sqrt(np.diag(resid.var(ddof=2) * np.linalg.inv(X.T @ X)))
+    j = cal_ai.assets.index("A045")
+    target = np.array([cal_ai.betas_stress[j, list(cal_ai.factors).index(n)] for n in names])
+    assert np.all(np.abs(beta - target) < 4 * se), (beta, target, se)
 
 
 # --- 8. PSD ----------------------------------------------------------------------------------
