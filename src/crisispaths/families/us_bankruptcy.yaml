@@ -1,0 +1,278 @@
+# US sovereign default or restructuring family.
+#
+# Axes are independent: the direction of the dollar says nothing about what
+# happens to equities afterwards. Composition rules (see crisispaths.compose):
+# axes apply in the order written here; later axes win on conflicting leaves;
+# `rationale` strings accumulate and `calibrated` is the AND of all patches.
+name: us_bankruptcy
+description: >-
+  A US sovereign default or restructuring shock, built from independent axes
+  for model complexity, dollar direction, aftermath, rates and credit, depth
+  and crash speed.
+description_suffix: A conditional what-if, not a forecast.
+
+base:
+  label: main_case
+  description: A US sovereign default or restructuring shock.
+  calibration_windows:
+    - [2008-09-01, 2009-03-09]
+    - [2020-02-19, 2020-03-23]
+    - [2011-07-22, 2011-10-03]
+  crash_length: 3M
+  horizon: 2Y
+  onset: 0D
+  anchors:
+    EQ:
+      cum_dist: lognormal_loss
+      params: {median: 0.40, sigma: 0.276, cap: 0.95}
+      calibrated: false
+  vol_multiplier: [3.0, 4.0]
+  factor_df: 3.0
+  copula_df: [10.0, 4.0]
+  aftermath:
+    mode: stagnation
+    bear_annual_drift: -0.2
+    recovery_fraction: [0.5, 0.8]
+    recovery_period: 9M
+    vol_half_life: 6W
+  param_meta:
+    vol_multiplier:
+      calibrated: false
+      rationale: Judgment; stress to calm volatility multiple, to be checked against the windows.
+    factor_df:
+      calibrated: false
+      rationale: Judgment; fat-tail degrees of freedom for factor innovations.
+    copula_df:
+      calibrated: false
+      rationale: Judgment; calm and stress t-copula degrees of freedom.
+
+axes:
+  complexity:
+    default: full
+    doc: Which factors are anchored. Unanchored factors are generated conditionally.
+    options:
+      minimal:
+        summary: Anchors EQ only.
+        describe: Only equities are anchored.
+        patch: {}
+      standard:
+        summary: Anchors EQ, USD and HAVEN.
+        describe: Equities, the dollar and haven assets are anchored.
+        patch:
+          anchors:
+            HAVEN:
+              cum_dist: uniform
+              params: {low: -0.25, high: -0.10, liquidation_length: 4W}
+              calibrated: false
+              rationale: >-
+                Judgment; haven assets are assumed to be sold in a four-week
+                liquidation (forced selling for cash). The liquidation range is
+                assumed, not estimated.
+      full:
+        summary: Anchors EQ, USD, HAVEN, RATES, CREDIT and VOL.
+        describe: Rates, credit and volatility are anchored as well.
+        patch:
+          anchors:
+            HAVEN:
+              cum_dist: uniform
+              params: {low: -0.25, high: -0.10, liquidation_length: 4W}
+              calibrated: false
+              rationale: >-
+                Judgment; haven assets are assumed to be sold in a four-week
+                liquidation (forced selling for cash). The liquidation range is
+                assumed, not estimated.
+            VOL:
+              cum_dist: uniform
+              params: {low: 0.7, high: 1.4, unit: log_change}
+              calibrated: false
+              rationale: >-
+                Judgment; the log change in VIX over the crash window is
+                assumed to be 0.7 to 1.4 (roughly a doubling to a quadrupling),
+                in the region of but not fitted to the historical windows.
+
+  usd:
+    default: neutral
+    doc: Direction of the dollar and what haven assets do after the liquidation.
+    options:
+      debasement:
+        summary: USD -20% to -10%; HAVEN +15% to +30% per year after liquidation.
+        describe: >-
+          The dollar falls and haven assets rally after an initial liquidation.
+        requires: {complexity: [standard, full]}
+        patch:
+          anchors:
+            USD:
+              cum_dist: uniform
+              params: {low: -0.20, high: -0.10}
+              calibrated: false
+              rationale: >-
+                Judgment; the sign of the dollar move is the contested question
+                in this scenario and no historical window settles it, so the
+                range is assumed.
+            HAVEN:
+              params: {post_drift_low: 0.15, post_drift_high: 0.30, post_drift_unit: annual}
+              rationale: >-
+                The post-liquidation range is a debasement-driven rally, assumed,
+                not estimated.
+      haven:
+        summary: USD +5% to +10%; HAVEN -5% to 0% per year after liquidation.
+        describe: >-
+          The dollar acts as the haven and rises, and haven assets drift flat to
+          slightly lower after an initial liquidation.
+        requires: {complexity: [standard, full]}
+        patch:
+          anchors:
+            USD:
+              cum_dist: uniform
+              params: {low: 0.05, high: 0.10}
+              calibrated: false
+              rationale: >-
+                Judgment; the sign of the dollar move is the contested question
+                in this scenario and no historical window settles it, so the
+                range is assumed.
+            HAVEN:
+              params: {post_drift_low: -0.05, post_drift_high: 0.0, post_drift_unit: annual}
+              rationale: >-
+                The post-liquidation drift is assumed flat to slightly lower,
+                not estimated.
+      neutral:
+        summary: USD unanchored; HAVEN has no post-liquidation drift anchor.
+        describe: The dollar is left unanchored.
+        patch: {}
+
+  aftermath:
+    default: prolonged_bear
+    doc: What happens after the crash window, independent of the dollar.
+    options:
+      prolonged_bear:
+        summary: Equities drift at -20% per year.
+        describe: A prolonged bear market follows.
+        patch:
+          aftermath:
+            mode: prolonged_bear
+            bear_annual_drift: -0.2
+            calibrated: false
+            rationale: Judgment; a prolonged bear at -20% per year is assumed, not estimated.
+      v_recovery:
+        summary: Recovers 50% to 80% of the loss over nine months.
+        describe: A V-shaped recovery follows.
+        patch:
+          aftermath:
+            mode: v_recovery
+            recovery_fraction: [0.5, 0.8]
+            recovery_period: 9M
+            calibrated: false
+            rationale: Judgment; recovery of 50-80% of the loss over nine months is assumed.
+      stagnation:
+        summary: No drift after the crash window.
+        describe: Markets then move sideways.
+        patch:
+          aftermath:
+            mode: stagnation
+            calibrated: false
+            rationale: >-
+              Judgment; no drift is assumed after the crash window, so prices
+              move sideways at their post-crash level.
+
+  rates_credit:
+    default: shock
+    doc: Whether RATES and CREDIT are anchored. Applies only at complexity=full.
+    options:
+      shock:
+        summary: RATES +100 to +250 bp, CREDIT +150 to +350 bp.
+        describe: Yields and credit spreads rise.
+        requires: {complexity: [full]}
+        patch:
+          anchors:
+            RATES:
+              cum_dist: uniform
+              params: {low: 100, high: 250, unit: bp}
+              calibrated: false
+              rationale: >-
+                Judgment; a sovereign-credit shock is assumed to push yields up.
+                This contradicts all three historical windows, in which
+                Treasuries rallied (yields fell), so it cannot be calibrated
+                from them.
+            CREDIT:
+              cum_dist: uniform
+              params: {low: 150, high: 350, unit: bp}
+              calibrated: false
+              rationale: >-
+                Judgment; spreads are assumed to widen with the rates shock.
+                This is not estimated from data and contradicts all three
+                historical windows, in which Treasuries rallied.
+      history_consistent:
+        summary: RATES and CREDIT unanchored; they follow history.
+        describe: Rates and credit are unanchored and follow history.
+        requires: {complexity: [full]}
+        patch: {}
+
+  depth:
+    default: base
+    doc: Equity loss distribution (lognormal loss, fraction of value).
+    options:
+      mild:
+        summary: EQ median loss 25%.
+        describe: Equities lose a lognormal-distributed fraction with a 25% median.
+        patch:
+          anchors:
+            EQ:
+              params: {median: 0.25}
+              rationale: >-
+                Judgment; lognormal equity loss with median 25%, sigma 0.276
+                and a 95% cap. The depth is assumed and is not fitted to the
+                historical windows.
+      base:
+        summary: EQ median loss 40%, sigma 0.276, cap 95%.
+        describe: Equities lose a lognormal-distributed fraction with a 40% median.
+        patch:
+          anchors:
+            EQ:
+              params: {median: 0.40, sigma: 0.276, cap: 0.95}
+              rationale: >-
+                Judgment; lognormal equity loss with median 40%, sigma 0.276
+                and a 95% cap. The depth is assumed and is not fitted to the
+                historical windows.
+      severe:
+        summary: EQ median loss 55%.
+        describe: Equities lose a lognormal-distributed fraction with a 55% median.
+        patch:
+          anchors:
+            EQ:
+              params: {median: 0.55}
+              rationale: >-
+                Judgment; lognormal equity loss with median 55%, sigma 0.276
+                and a 95% cap. The depth is assumed and is not fitted to the
+                historical windows.
+
+  crash_speed:
+    default: base
+    doc: Length of the crash window.
+    options:
+      fast:
+        summary: Crash over 1 month.
+        describe: The crash unfolds over one month.
+        patch:
+          crash_length: 1M
+          param_meta:
+            crash_length:
+              calibrated: false
+              rationale: Judgment; a one-month crash window is assumed.
+      base:
+        summary: Crash over 3 months.
+        describe: The crash unfolds over three months.
+        patch:
+          crash_length: 3M
+          param_meta:
+            crash_length:
+              calibrated: false
+              rationale: Judgment; a three-month crash window is assumed.
+      slow:
+        summary: Crash over 6 months.
+        describe: The crash unfolds over six months.
+        patch:
+          crash_length: 6M
+          param_meta:
+            crash_length:
+              calibrated: false
+              rationale: Judgment; a six-month crash window is assumed.

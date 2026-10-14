@@ -1,0 +1,263 @@
+# AI-led equity bubble family, anchored on the 2000-2002 analog.
+#
+# `complexity` decides which anchors exist; `crash_source` fills in their
+# distributions. Composition rules (see crisispaths.compose): axes apply in
+# the order written here; later axes win on conflicting leaves; `rationale`
+# strings accumulate and `calibrated` is the AND of all patches.
+#
+# Reserved anchor params consumed by the generator: `spread_scale` multiplies
+# the realised TECH shock, `loss_scale` multiplies the realised loss of an
+# anchor. Both are judgment parameters.
+name: ai_bubble
+description: >-
+  An AI-led equity bubble deflates, built from independent axes for model
+  complexity, crash source, aftermath, technology spread and depth.
+description_suffix: A conditional what-if, not a forecast.
+
+base:
+  label: main_case
+  description: An AI-led equity bubble deflates.
+  calibration_windows:
+    - [2000-03-10, 2002-10-09]
+  crash_length: 3M
+  horizon: 2Y
+  onset: 0D
+  analog_window: [2000-03-10, 2002-10-09]
+  analog_mode: exact
+  anchors:
+    EQ:
+      params: {}
+  vol_multiplier: [3.0, 4.0]
+  factor_df: 3.0
+  copula_df: [10.0, 4.0]
+  aftermath:
+    mode: stagnation
+    bear_annual_drift: -0.2
+    recovery_fraction: [0.5, 0.8]
+    recovery_period: 9M
+    vol_half_life: 6W
+  param_meta:
+    vol_multiplier:
+      calibrated: false
+      rationale: Judgment; stress volatility multiple relative to calm volatility.
+    factor_df:
+      calibrated: false
+      rationale: Judgment; fat-tail degrees of freedom for factor innovations.
+    copula_df:
+      calibrated: false
+      rationale: Judgment; calm and stress t-copula degrees of freedom.
+
+axes:
+  complexity:
+    default: standard
+    doc: Which factors are anchored; the others are generated conditionally.
+    options:
+      minimal:
+        summary: Anchors EQ (S&P 500 analog) only.
+        describe: Only the broad equity factor is anchored.
+        patch: {}
+      standard:
+        summary: Anchors EQ and TECH (Nasdaq residual analog).
+        describe: The broad equity and technology residual factors are anchored.
+        patch:
+          anchors:
+            TECH:
+              params: {}
+      full:
+        summary: EQ and TECH anchored; USD, RATES and VOL generated conditionally.
+        describe: >-
+          The dollar, rates and volatility are generated conditionally on the
+          anchored factors.
+        patch:
+          anchors:
+            TECH:
+              params: {}
+          conditional_factors: [USD, RATES, VOL]
+
+  crash_source:
+    default: analog_exact
+    doc: Where the crash leg of the anchored factors comes from.
+    options:
+      analog_exact:
+        summary: Replay the realised 2000-2002 path.
+        describe: >-
+          The crash leg is a 2000-2002 replay, which is itself a 31-month bear:
+          IXIC -78%, SPX -49%.
+        patches:
+          - patch:
+              analog_mode: exact
+              anchors:
+                EQ:
+                  cum_dist: analog
+                  calibrated: true
+                  rationale: Replays the realised S&P 500 path of the analog window.
+          - when_anchor: TECH
+            patch:
+              anchors:
+                TECH:
+                  cum_dist: analog
+                  calibrated: true
+                  rationale: >-
+                    Replays the realised technology residual (Nasdaq
+                    orthogonalised to S&P 500).
+      analog_bootstrap:
+        summary: Block bootstrap of the 2000-2002 window.
+        describe: >-
+          The crash leg is a block bootstrap of the 2000-2002 window, which is
+          itself a 31-month bear: IXIC -78%, SPX -49%.
+        patches:
+          - patch:
+              analog_mode: block_bootstrap
+              anchors:
+                EQ:
+                  cum_dist: analog
+                  calibrated: true
+                  rationale: >-
+                    Block bootstrap of the realised S&P 500 path of the analog
+                    window.
+          - when_anchor: TECH
+            patch:
+              anchors:
+                TECH:
+                  cum_dist: analog
+                  calibrated: true
+                  rationale: >-
+                    Block bootstrap of the realised technology residual
+                    (Nasdaq orthogonalised to S&P 500).
+      parametric:
+        summary: Lognormal loss targets scaled to IXIC -78% and SPX -49%.
+        describe: >-
+          The crash leg is parametric, with lognormal loss targets scaled to
+          the 2000-2002 peak to trough of IXIC -78% and SPX -49%.
+        patches:
+          - patch:
+              analog_window: null
+              anchors:
+                EQ:
+                  cum_dist: lognormal_loss
+                  params: {median: 0.49, sigma: 0.276, cap: 0.95}
+                  calibrated: false
+                  rationale: >-
+                    Judgment; lognormal loss with median set to the SPX
+                    2000-2002 peak-to-trough loss of 49%. The sigma and the cap
+                    are assumed.
+          - when_anchor: TECH
+            patch:
+              anchors:
+                TECH:
+                  cum_dist: lognormal_loss
+                  params: {median: 0.569, sigma: 0.276, cap: 0.95}
+                  calibrated: false
+                  rationale: >-
+                    Judgment; lognormal loss with median set to the technology
+                    residual implied by IXIC -78% and SPX -49% at unit beta
+                    (1 - 0.22 / 0.51 = 56.9%). The sigma and the cap are
+                    assumed.
+
+  aftermath:
+    default: analog
+    doc: What happens after the crash window.
+    options:
+      analog:
+        summary: Continue along the analog path. Needs an analog crash source.
+        describe: The aftermath continues along the same replayed path.
+        requires: {crash_source: [analog_exact, analog_bootstrap]}
+        patch:
+          aftermath:
+            mode: analog
+            calibrated: true
+            rationale: The aftermath is the realised continuation of the analog window.
+        fallback:
+          describe: >-
+            The analog aftermath is unavailable for a parametric crash, so
+            markets move sideways afterwards.
+          patch:
+            aftermath:
+              mode: stagnation
+              calibrated: false
+              rationale: >-
+                Judgment; the analog aftermath needs an analog crash source, so
+                no drift is assumed after the crash window.
+      prolonged_bear:
+        summary: Equities drift at -20% per year.
+        describe: A prolonged bear market follows.
+        patch:
+          aftermath:
+            mode: prolonged_bear
+            bear_annual_drift: -0.2
+            calibrated: false
+            rationale: Judgment; a prolonged bear at -20% per year is assumed, not estimated.
+      v_recovery:
+        summary: COUNTERFACTUAL; recovers 50% to 80% of the loss over nine months.
+        describe: >-
+          COUNTERFACTUAL: the aftermath is a V-shaped recovery that has no
+          analog in the 2000-2002 window.
+        patch:
+          label: COUNTERFACTUAL
+          aftermath:
+            mode: v_recovery
+            recovery_fraction: [0.5, 0.8]
+            recovery_period: 9M
+            calibrated: false
+            rationale: Judgment; the historical analog did not recover, so the recovery is assumed.
+      stagnation:
+        summary: No drift after the crash window.
+        describe: Markets then move sideways.
+        patch:
+          aftermath:
+            mode: stagnation
+            calibrated: false
+            rationale: >-
+              Judgment; no drift is assumed after the crash window, so prices
+              move sideways at their post-crash level.
+
+  tech_spread:
+    default: as_2000
+    doc: Size of the technology residual shock relative to the 2000 path.
+    options:
+      as_2000:
+        summary: TECH shock as in 2000-2002.
+        describe: The technology shock is as large as in 2000-2002.
+        patch: {}
+      amplified_1_5x:
+        summary: TECH shock multiplied by 1.5. Needs TECH anchored.
+        describe: The technology shock is amplified 1.5 times.
+        requires: {complexity: [standard, full]}
+        patch:
+          anchors:
+            TECH:
+              params: {spread_scale: 1.5}
+              calibrated: false
+              rationale: >-
+                Judgment; the technology residual shock is amplified by a
+                factor of 1.5 relative to the 2000 path, an assumed value.
+
+  depth:
+    default: as_2000
+    doc: Overall loss scale relative to the 2000-2002 analog.
+    options:
+      as_2000:
+        summary: Losses as in 2000-2002.
+        describe: Losses are as deep as in 2000-2002.
+        patch: {}
+      severe:
+        summary: Anchored losses scaled by 1.25.
+        describe: Losses are scaled to be 1.25 times as deep as in 2000-2002.
+        patches:
+          - patch:
+              anchors:
+                EQ:
+                  params: {loss_scale: 1.25}
+                  calibrated: false
+                  rationale: >-
+                    Judgment; the loss is scaled by an assumed factor of 1.25
+                    relative to the 2000-2002 analog.
+          - when_anchor: TECH
+            patch:
+              anchors:
+                TECH:
+                  params: {loss_scale: 1.25}
+                  calibrated: false
+                  rationale: >-
+                    Judgment; the loss is scaled by an assumed factor of 1.25
+                    relative to the 2000-2002 analog.
